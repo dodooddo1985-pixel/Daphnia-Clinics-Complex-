@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدول حراسة مجمع الدافنية</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --primary: #1a3c5e;
+            --accent: #c9a96e;
+            --danger: #e74c3c;
+            --text: #2c3e50;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', 'Tajawal', 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #e8ecf1, #f0f2f5);
+            min-height: 100vh; color: var(--text);
+        }
+        /* شاشة الدخول */
+        .login-container {
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
+            background: linear-gradient(135deg, #1a3c5e 0%, #2c5a7a 100%);
+        }
+        .login-box {
+            background: #fff; border-radius: 20px; padding: 40px; width: 90%; max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center;
+        }
+        .login-box h2 { margin-bottom: 20px; color: var(--primary); }
+        .login-box input {
+            width: 100%; padding: 14px; margin: 10px 0; border: 2px solid #ddd;
+            border-radius: 10px; font-size: 1rem; text-align: right;
+        }
+        .login-box button {
+            width: 100%; padding: 14px; background: var(--primary); color: #fff;
+            border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+            margin-top: 10px;
+        }
+        .login-error { color: #e74c3c; margin-top: 10px; font-weight: 600; }
+
+        /* التطبيق الرئيسي */
+        .app-container { display: none; padding: 20px; max-width: 1100px; margin: 0 auto; }
+        .header {
+            background: var(--primary); color: #fff; padding: 25px; border-radius: 16px;
+            text-align: center; margin-bottom: 25px; box-shadow: var(--shadow);
+        }
+        .guards-panel, .month-nav, .calendar, .summary, .roster-detail {
+            background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+        }
+        .guards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+        .guard-input-group { background: #f9fafb; padding: 14px; border-radius: 12px; }
+        .guard-input-group input { width: 100%; padding: 9px; border: 2px solid #e8e8e8; border-radius: 8px; }
+        .btn-save { padding: 10px 24px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--primary); color: #fff; text-align: center; font-weight: 700; padding: 14px 0; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #e8e8e8; }
+        .day-cell {
+            aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 6px; cursor: pointer; font-weight: 600;
+            color: #fff; border-radius: 4px; font-size: 0.9rem; text-align: center;
+        }
+        .guard-bg-0{background:#3498db}.guard-bg-1{background:#e74c3c}.guard-bg-2{background:#27ae60}
+        .guard-bg-3{background:#f39c12}.guard-bg-4{background:#8e44ad}.guard-bg-5{background:#16a085}
+        .cancelled-bg{background:#bdc3c7!important;color:#555}.substitute-bg{background:#e67e22!important}
+        .day-cell.today{box-shadow:0 0 0 4px var(--accent)}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:1000}
+        .modal{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:480px}
+        .btn-logout{background:var(--danger); color:#fff; padding:8px 16px; border-radius:20px; border:none; cursor:pointer; margin-right:12px}
+        @media(max-width:700px){.day-cell{font-size:0.7rem}}
+    </style>
+</head>
+<body>
+    <!-- شاشة الدخول -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h2>🔐 تسجيل الدخول</h2>
+            <input type="text" id="usernameInput" placeholder="اسم المستخدم" autocomplete="off">
+            <input type="password" id="passwordInput" placeholder="كلمة المرور">
+            <button onclick="login()">دخول</button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div id="appContainer" class="app-container">
+        <div class="header">
+            <span style="font-size:48px;">🏢</span>
+            <h1>مجمع الدافنية - جدول الحراسة</h1>
+            <p>نظام المناوبة: يوم عمل (24 ساعة) + 5 أيام راحة</p>
+            <span class="badge" style="background:var(--accent); color:#fff; padding:6px 18px; border-radius:20px;">🔄 6 أفراد</span>
+        </div>
+
+        <div class="guards-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>🛡️ بيانات الحراس</h3>
+                <div>
+                    <button class="btn-save" onclick="changePassword()" style="background:#8e44ad;">🔑 تغيير كلمة المرور</button>
+                    <button class="btn-logout" onclick="logout()">🚪 خروج</button>
+                </div>
+            </div>
+            <div class="guards-grid" id="guardsGrid"></div>
+            <button class="btn-save" onclick="saveGuards()">💾 حفظ الأسماء</button>
+            <span id="saveFeedback" style="color:#27ae60; font-weight:600; opacity:0;">✓ تم الحفظ!</span>
+            <div class="watch-selector" style="margin-top:14px; background:#f0f7ff; padding:12px; border-radius:12px;">
+                <label>🔍 تابع الحارس:</label>
+                <select id="watchGuardSelect" onchange="onWatchGuardChange()"><option value="-1">-- لا أتابع --</option></select>
+            </div>
+        </div>
+
+        <div class="month-nav">
+            <button onclick="changeMonth(-1)" style="background:var(--primary); color:#fff; border:none; width:42px; height:42px; border-radius:50%;">◀</button>
+            <span id="monthLabel" style="font-size:1.5rem; font-weight:800; min-width:200px; text-align:center;"></span>
+            <button onclick="changeMonth(1)" style="background:var(--primary); color:#fff; border:none; width:42px; height:42px; border-radius:50%;">▶</button>
+            <button onclick="goToToday()" style="background:var(--accent); border-radius:20px; padding:10px 20px;">📅 اليوم</button>
+        </div>
+
+        <div class="calendar">
+            <div class="weekdays"><div>الأحد</div><div>الإثنين</div><div>الثلاثاء</div><div>الأربعاء</div><div>الخميس</div><div>الجمعة</div><div>السبت</div></div>
+            <div class="days-grid" id="daysGrid"></div>
+        </div>
+
+        <div class="summary" id="summary"></div>
+        <div class="roster-detail"><h4>📋 التفاصيل</h4><div id="rosterList"></div></div>
+    </div>
+
+    <!-- مودال الإلغاء -->
+    <div class="modal-overlay" id="cancelModal" style="display:none;">
+        <div class="modal">
+            <button onclick="closeCancelModal()" style="position:absolute; top:12px; left:16px; background:none; border:none; font-size:1.5rem;">✖</button>
+            <h4>إلغاء وردية</h4>
+            <input type="hidden" id="modalDate">
+            <select id="cancelReason" style="width:100%; margin:8px 0;"><option>مرض</option><option>إجازة</option><option>طارئ</option><option>أخرى</option></select>
+            <select id="substituteGuard" style="width:100%; margin:8px 0;"><option value="-1">-- بدون بديل --</option></select>
+            <button onclick="saveCancellation()" style="background:var(--primary); color:#fff; border:none; padding:10px; border-radius:8px; width:100%;">💾 حفظ الإلغاء</button>
+            <button id="deleteCancelBtn" onclick="deleteCancellation()" style="background:#e74c3c; color:#fff; border:none; padding:10px; border-radius:8px; width:100%; margin-top:8px; display:none;">🗑 حذف الإلغاء</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== تسجيل الدخول ==========
+        const DEFAULT_USER = "admin";
+        const DEFAULT_PASS = "1234";
+
+        function getStoredPassword() {
+            return localStorage.getItem('dafniya_password') || DEFAULT_PASS;
+        }
+
+        function login() {
+            const user = document.getElementById('usernameInput').value.trim();
+            const pass = document.getElementById('passwordInput').value.trim();
+            const storedPass = getStoredPassword();
+            if (user === DEFAULT_USER && pass === storedPass) {
+                sessionStorage.setItem('dafniya_loggedIn', 'true');
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'block';
+                document.getElementById('loginError').textContent = '';
+                initApp();
+            } else {
+                document.getElementById('loginError').textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('dafniya_loggedIn');
+            document.getElementById('appContainer').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('usernameInput').value = '';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function changePassword() {
+            const oldPass = prompt("أدخل كلمة المرور الحالية:");
+            if (oldPass !== getStoredPassword()) {
+                alert("كلمة المرور الحالية غير صحيحة!");
+                return;
+            }
+            const newPass = prompt("أدخل كلمة المرور الجديدة:");
+            if (!newPass || newPass.length < 3) {
+                alert("كلمة المرور يجب أن تكون 3 أحرف على الأقل.");
+                return;
+            }
+            localStorage.setItem('dafniya_password', newPass);
+            alert("✅ تم تغيير كلمة المرور بنجاح!");
+        }
+
+        // ========== التطبيق ==========
+        const TOTAL_GUARDS = 6;
+        const DEFAULT_NAMES = ['أحمد محمد','خالد علي','محمود إبراهيم','سعيد عمر','عبدالله حسن','يوسف خليل'];
+        const DEFAULT_PHONES = ['0910000001','0910000002','0910000003','0910000004','0910000005','0910000006'];
+        const GUARD_COLORS = ['#3498db','#e74c3c','#27ae60','#f39c12','#8e44ad','#16a085'];
+
+        let guardNames = [], guardPhones = [], watchedGuardIndex = -1, currentDate = new Date(), cancellations = {};
+
+        function loadAll() {
+            guardNames = JSON.parse(localStorage.getItem('dafniya_names')) || [...DEFAULT_NAMES];
+            guardPhones = JSON.parse(localStorage.getItem('dafniya_phones')) || [...DEFAULT_PHONES];
+            watchedGuardIndex = parseInt(localStorage.getItem('dafniya_watch')) || -1;
+            cancellations = JSON.parse(localStorage.getItem('dafniya_cancellations')) || {};
+        }
+        function saveAll() {
+            localStorage.setItem('dafniya_names', JSON.stringify(guardNames));
+            localStorage.setItem('dafniya_phones', JSON.stringify(guardPhones));
+            localStorage.setItem('dafniya_watch', watchedGuardIndex);
+            localStorage.setItem('dafniya_cancellations', JSON.stringify(cancellations));
+        }
+
+        function getGuardForDate(date) {
+            const ref = new Date(2025,0,1);
+            const diffDays = Math.floor((date.getTime()-ref.getTime())/86400000);
+            return ((diffDays%TOTAL_GUARDS)+TOTAL_GUARDS)%TOTAL_GUARDS;
+        }
+        function formatKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+        function getCancellation(d){return cancellations[formatKey(d)];}
+
+        function renderGuardsInputs() {
+            document.getElementById('guardsGrid').innerHTML = guardNames.map((n,i)=>`
+                <div class="guard-input-group">
+                    <label>الحارس ${i+1}</label>
+                    <input id="guardInput${i}" value="${n}">
+                    <input id="phoneInput${i}" value="${guardPhones[i]||''}" placeholder="رقم الهاتف" dir="ltr">
+                </div>`).join('');
+            const sel = document.getElementById('watchGuardSelect');
+            sel.innerHTML = '<option value="-1">-- لا أتابع --</option>'+guardNames.map((n,i)=>`<option value="${i}" ${i===watchedGuardIndex?'selected':''}>${n}</option>`).join('');
+            document.getElementById('substituteGuard').innerHTML = '<option value="-1">-- بدون بديل --</option>'+guardNames.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+        }
+
+        function saveGuards() {
+            for(let i=0;i<TOTAL_GUARDS;i++){
+                guardNames[i]=document.getElementById('guardInput'+i)?.value.trim()||DEFAULT_NAMES[i];
+                guardPhones[i]=document.getElementById('phoneInput'+i)?.value.trim()||'';
+            }
+            saveAll(); renderAll();
+            const fb=document.getElementById('saveFeedback'); fb.style.opacity=1;
+            setTimeout(()=>fb.style.opacity=0,1800);
+        }
+
+        function onWatchGuardChange(){watchedGuardIndex=parseInt(document.getElementById('watchGuardSelect').value);saveAll();renderAll();}
+        function changeMonth(d){currentDate.setMonth(currentDate.getMonth()+d);renderAll();}
+        function goToToday(){currentDate=new Date();renderAll();}
+
+        function openCancelModal(date){
+            document.getElementById('modalDate').value=formatKey(date);
+            const c=getCancellation(date);
+            document.getElementById('cancelReason').value=c?.reason||'مرض';
+            document.getElementById('substituteGuard').value=c?.substituteIndex??-1;
+            document.getElementById('deleteCancelBtn').style.display=c?'block':'none';
+            document.getElementById('cancelModal').style.display='flex';
+        }
+        function closeCancelModal(){document.getElementById('cancelModal').style.display='none';}
+        function saveCancellation(){
+            const key=document.getElementById('modalDate').value;
+            cancellations[key]={reason:document.getElementById('cancelReason').value, substituteIndex:parseInt(document.getElementById('substituteGuard').value)};
+            saveAll();closeCancelModal();renderAll();
+        }
+        function deleteCancellation(){delete cancellations[document.getElementById('modalDate').value];saveAll();closeCancelModal();renderAll();}
+
+        function renderCalendar(){
+            const year=currentDate.getFullYear(), month=currentDate.getMonth();
+            document.getElementById('monthLabel').textContent=`${['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][month]} ${year}`;
+            const today=new Date(), todayStr=formatKey(today);
+            const firstDay=new Date(year,month,1), daysInMonth=new Date(year,month+1,0).getDate();
+            let html='';
+            for(let i=0;i<firstDay.getDay();i++) html+='<div class="day-cell" style="background:#f7f8f9;"></div>';
+            for(let d=1;d<=daysInMonth;d++){
+                const cellDate=new Date(year,month,d), key=formatKey(cellDate);
+                const orig=getGuardForDate(cellDate), cancel=getCancellation(cellDate);
+                let bg=`guard-bg-${orig}`, name=guardNames[orig]||`ح.${orig+1}`;
+                if(cancel){
+                    if(cancel.substituteIndex>=0){bg='substitute-bg'; name='🔄 '+(guardNames[cancel.substituteIndex]||`ح.${cancel.substituteIndex+1}`);}
+                    else{bg='cancelled-bg'; name='🚫 '+name;}
+                }
+                let cls=`day-cell ${bg}`;
+                if(key===todayStr) cls+=' today';
+                html+=`<div class="${cls}" onclick="openCancelModal(new Date(${year},${month},${d}))">
+                    <div><b>${d}</b></div><div style="font-size:0.7rem">${name}</div></div>`;
+            }
+            document.getElementById('daysGrid').innerHTML=html;
+        }
+
+        function updateSummary(){
+            const year=currentDate.getFullYear(), month=currentDate.getMonth(), daysInMonth=new Date(year,month+1,0).getDate();
+            const counts=Array(TOTAL_GUARDS).fill(0);
+            for(let d=1;d<=daysInMonth;d++){
+                const cellDate=new Date(year,month,d), cancel=getCancellation(cellDate);
+                const g=cancel?.substituteIndex>=0?cancel.substituteIndex:getGuardForDate(cellDate);
+                if(!cancel||cancel.substituteIndex>=0) counts[g]++;
+            }
+            document.getElementById('summary').innerHTML='<strong>📊 الورديات:</strong> '+guardNames.map((n,i)=>`<span style="margin:4px;">${n}: <b>${counts[i]}</b></span>`).join('');
+        }
+
+        function renderRosterDetail(){
+            const year=currentDate.getFullYear(), month=currentDate.getMonth(), daysInMonth=new Date(year,month+1,0).getDate();
+            const data=Array.from({length:TOTAL_GUARDS},()=>({days:[],cancelled:[]}));
+            for(let d=1;d<=daysInMonth;d++){
+                const cellDate=new Date(year,month,d), cancel=getCancellation(cellDate);
+                const orig=getGuardForDate(cellDate);
+                if(cancel){
+                    data[orig].cancelled.push({day:d,reason:cancel.reason,sub:cancel.substituteIndex>=0?guardNames[cancel.substituteIndex]:null});
+                    if(cancel.substituteIndex>=0) data[cancel.substituteIndex].days.push(d);
+                }else data[orig].days.push(d);
+            }
+            document.getElementById('rosterList').innerHTML=guardNames.map((n,i)=>{
+                const days=data[i].days.length?data[i].days.join('، '):'لا يوجد';
+                const cancelled=data[i].cancelled.map(c=>`${c.day}(${c.reason}${c.sub?'→'+c.sub:''})`).join(' | ');
+                return `<div style="background:#f9fafb; padding:10px; border-radius:10px; margin:4px 0;">
+                    <strong>${n}</strong> 📱 ${guardPhones[i]}<br>✅ ${days} ${cancelled?`<br>🚫 ملغاة: ${cancelled}`:''}</div>`;
+            }).join('');
+        }
+
+        function renderAll(){renderCalendar();updateSummary();renderRosterDetail();}
+
+        function initApp(){
+            loadAll();
+            renderGuardsInputs();
+            renderAll();
+        }
+
+        // التحقق من الجلسة عند التحميل
+        if(sessionStorage.getItem('dafniya_loggedIn') === 'true'){
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            initApp();
+        }
+        window.onclick = e => { if(e.target === document.getElementById('cancelModal')) closeCancelModal(); };
+    </script>
+</body>
+</html>
